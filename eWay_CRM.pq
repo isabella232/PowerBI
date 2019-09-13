@@ -2,20 +2,25 @@
 section eWay_CRM;
 
 [DataSource.Kind="eWay_CRM", Publish="eWay_CRM.Publish"]
-shared eWay_CRM.Contents = (optional message as text) =>
+shared eWay_CRM.Contents = (ws_url as text, session_id as text) =>
     let
-        _message = if (message <> null) then message else "(no message)",
-        a = "Hello from eWay_CRM: " & _message
+        url = ws_url & "/API.svc/GetUsers",
+        body = "{ ""sessionId"": """ & session_id & """ }",
+        Source  = Json.Document(Web.Contents(url,
+            [ 
+                Headers = [#"Content-Type"="application/json"],
+                Content=Text.ToBinary(body)
+            ]
+        )),
+        JsonData = Source[Data],
+        #"Converted to Table" = Table.FromList(JsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error)
     in
-        a;
+        #"Converted to Table";
 
 // Data Source Kind description
 eWay_CRM = [
     Authentication = [
-        // Key = [],
-        // UsernamePassword = [],
-        // Windows = [],
-        Implicit = []
+        Anonymous = []
     ],
     Label = Extension.LoadString("DataSourceLabel")
 ];
@@ -23,9 +28,9 @@ eWay_CRM = [
 // Data Source UI publishing description
 eWay_CRM.Publish = [
     Beta = true,
-    Category = "Other",
+    Category = "Online Services",
     ButtonText = { Extension.LoadString("ButtonTitle"), Extension.LoadString("ButtonHelp") },
-    LearnMoreUrl = "https://powerbi.microsoft.com/",
+    LearnMoreUrl = "https://www.eway-crm.com/",
     SourceImage = eWay_CRM.Icons,
     SourceTypeImage = eWay_CRM.Icons
 ];
