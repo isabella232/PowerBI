@@ -41,7 +41,7 @@ eWay_CRM_Implementaion = (WebServiceUrl as text, FolderName as text) =>
             else if (FolderName = "Time Sheets") then "WorkReports"
             else if (FolderName = "Workflow History") then "WorkflowHistoryRecords" else FolderName,
         LoginUrl = WebServiceUrl & "/WcfService/Service.svc/Login",
-        SessionBody = "{ ""userName"": """ & Credential[Username] & """, ""passwordHash"": """ & Credential[Password] & """, ""appVersion"": ""PowerBI_Connector_10"" }",
+        SessionBody = "{ ""userName"": """ & Credential[Username] & """, ""passwordHash"": """ & Credential[Password] & """, ""appVersion"": ""PowerBI_Connector_10"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
         SessionResult = Json.Document(Web.Contents(LoginUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
