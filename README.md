@@ -3,7 +3,7 @@ Using this data source users are able to build reports in PowerBI using data fro
 
 To get started you need to first create `[Documents]\Power BI Desktop\Custom Connectors` directory.
 
-After that download the latest version of the [eWay-CRM Data Source](https://github.com/eway-crm/PowerBI/releases/latest/download/eWay-CRM.mez).
+After that download the latest version of the [eWay-CRM Data Source](https://github.com/eway-crm/PowerBI/releases/latest/download/eWay-CRM.mez) into `[Documents]\Power BI Desktop\Custom Connectors` directory.
 
 As soon as you start PowerBI Desktop you will notice a warning about **Uncertified Connectors**.
 
