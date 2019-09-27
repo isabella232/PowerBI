@@ -5,15 +5,12 @@ section eWay_CRM;
 shared eWay_CRM.Contents = Value.ReplaceType(eWay_CRM_Implementaion, eWay_CRM_Type);
 
 eWay_CRM_Type = type function (
-    ws_url as (type text meta [
+    WebServiceUrl as (type text meta [
         Documentation.FieldCaption = "Web Service Address",
         Documentation.FieldDescription = "Address of the eWay-CRM WebService",
         Documentation.SampleValues = {"https://eway.example.com"}
     ]),
-    session_id as (type text meta [
-        Documentation.FieldCaption = "Session ID"
-    ]),
-    folder_name as (type text meta [
+    FolderName as (type text meta [
         Documentation.FieldCaption = "Module",
         Documentation.FieldDescription = "Name of the eWay-CRM module.",
         Documentation.AllowedValues = {
@@ -25,32 +22,42 @@ eWay_CRM_Type = type function (
     ]))
     as table;
 
-eWay_CRM_Implementaion = (ws_url as text, session_id as text, folder_name as text) =>
+eWay_CRM_Implementaion = (WebServiceUrl as text, FolderName as text) =>
     let
-        folder_name = if (folder_name = "Bookkeeping") then "Carts"
-            else if (folder_name = "Deals") then "Leads"
-            else if (folder_name = "Calendar") then "Calendars"
-            else if (folder_name = "Categories") then "Groups"
-            else if (folder_name = "Discount Lists") then "SalePrices"
-            else if (folder_name = "Drop Down Menu") then "EnumTypes"
-            else if (folder_name = "Drop Down Menu Values") then "EnumValues"
-            else if (folder_name = "Exchange Rates") then "ExchangeRates"
-            else if (folder_name = "Journal") then "Journals"
-            else if (folder_name = "Marketing") then "MarketingCampaigns"
-            else if (folder_name = "Marketing List") then "MarketingListsRecords"
-            else if (folder_name = "Products") then "Goods"
-            else if (folder_name = "Products in Bookkeeping Record") then "GoodsInCart"
-            else if (folder_name = "Time Sheets") then "WorkReports"
-            else if (folder_name = "Workflow History") then "WorkflowHistoryRecords" else folder_name,
-        url = ws_url & "/API.svc/Get" & folder_name,
-        body = "{ ""sessionId"": """ & session_id & """ }",
-        Source  = Json.Document(Web.Contents(url,
+        Credential = Extension.CurrentCredential(),
+        FolderName = if (FolderName = "Bookkeeping") then "Carts"
+            else if (FolderName = "Deals") then "Leads"
+            else if (FolderName = "Calendar") then "Calendars"
+            else if (FolderName = "Categories") then "Groups"
+            else if (FolderName = "Discount Lists") then "SalePrices"
+            else if (FolderName = "Drop Down Menu") then "EnumTypes"
+            else if (FolderName = "Drop Down Menu Values") then "EnumValues"
+            else if (FolderName = "Exchange Rates") then "ExchangeRates"
+            else if (FolderName = "Journal") then "Journals"
+            else if (FolderName = "Marketing") then "MarketingCampaigns"
+            else if (FolderName = "Marketing List") then "MarketingListsRecords"
+            else if (FolderName = "Products") then "Goods"
+            else if (FolderName = "Products in Bookkeeping Record") then "GoodsInCart"
+            else if (FolderName = "Time Sheets") then "WorkReports"
+            else if (FolderName = "Workflow History") then "WorkflowHistoryRecords" else FolderName,
+        LoginUrl = WebServiceUrl & "/WcfService/Service.svc/Login",
+        SessionBody = "{ ""userName"": """ & Credential[Username] & """, ""passwordHash"": """ & Credential[Password] & """, ""appVersion"": ""PowerBI_Connector_10"" }",
+        SessionResult = Json.Document(Web.Contents(LoginUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
-                Content=Text.ToBinary(body)
+                Content = Text.ToBinary(SessionBody)
             ]
         )),
-        JsonData = Source[Data],
+        SessionId = SessionResult[SessionId],
+        DataUrl = WebServiceUrl & "/WcfService/Service.svc/Get" & FolderName,
+        DataBody = "{ ""sessionId"": """ & SessionId & """ }",
+        DataResult  = Json.Document(Web.Contents(DataUrl,
+            [
+                Headers = [#"Content-Type"="application/json"],
+                Content = Text.ToBinary(DataBody)
+            ]
+        )),
+        JsonData = DataResult[Data],
         #"Converted to Table" = Table.FromList(JsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error)
     in
         #"Converted to Table";
@@ -58,7 +65,7 @@ eWay_CRM_Implementaion = (ws_url as text, session_id as text, folder_name as tex
 // Data Source Kind description
 eWay_CRM = [
     Authentication = [
-        Anonymous = []
+        UsernamePassword = []
     ],
     Label = Extension.LoadString("DataSourceLabel")
 ];
