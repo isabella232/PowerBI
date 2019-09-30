@@ -8,7 +8,7 @@ eWay_CRM_Type = type function (
     WebServiceUrl as (type text meta [
         Documentation.FieldCaption = "Web Service Address",
         Documentation.FieldDescription = "Address of the eWay-CRM WebService",
-        Documentation.SampleValues = {"https://eway.example.com"}
+        Documentation.SampleValues = { "https://eway.example.com" }
     ]),
     FolderName as (type text meta [
         Documentation.FieldCaption = "Module",
@@ -19,10 +19,14 @@ eWay_CRM_Type = type function (
             "Marketing List", "Products", "Products in Bookkeeping Record", "Projects", "Tasks", "Time Sheets", "Users",
             "Workflow History"
         }
+    ]),
+    optional IncludeRelations as (type logical meta [
+        Documentation.FieldCaption = "Include Relations",
+        Documentation.FieldDescription = "Load also relations between items."
     ]))
     as table;
 
-eWay_CRM_Implementaion = (WebServiceUrl as text, FolderName as text) =>
+eWay_CRM_Implementaion = (WebServiceUrl as text, FolderName as text, optional IncludeRelations as logical) =>
     let
         Credential = Extension.CurrentCredential(),
         FolderName = if (FolderName = "Bookkeeping") then "Carts"
@@ -41,6 +45,8 @@ eWay_CRM_Implementaion = (WebServiceUrl as text, FolderName as text) =>
             else if (FolderName = "Time Sheets") then "WorkReports"
             else if (FolderName = "Workflow History") then "WorkflowHistoryRecords" else FolderName,
         LoginUrl = WebServiceUrl & "/WcfService/Service.svc/Login",
+        IncludeRelations = if (IncludeRelations = null) then false else IncludeRelations,
+        IncludeRelationsParameter = if (IncludeRelations = true) then "true" else "false",
         SessionBody = "{ ""userName"": """ & Credential[Username] & """, ""passwordHash"": """ & Credential[Password] & """, ""appVersion"": ""PowerBI_Connector_10"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
         SessionResult = Json.Document(Web.Contents(LoginUrl,
             [
@@ -50,7 +56,7 @@ eWay_CRM_Implementaion = (WebServiceUrl as text, FolderName as text) =>
         )),
         SessionId = SessionResult[SessionId],
         DataUrl = WebServiceUrl & "/WcfService/Service.svc/Get" & FolderName,
-        DataBody = "{ ""sessionId"": """ & SessionId & """ }",
+        DataBody = "{ ""sessionId"": """ & SessionId & """, ""includeRelations"": " & IncludeRelationsParameter & ", ""includeForeignKeys"": true }",
         DataResult  = Json.Document(Web.Contents(DataUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
