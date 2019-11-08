@@ -5,14 +5,9 @@ section eWay_CRM;
 shared eWay_CRM.Contents = Value.ReplaceType(eWay_CRM_Implementaion, eWay_CRM_Type);
 
 eWay_CRM_Type = type function (
-    WebServiceUrl as (type text meta [
-        Documentation.FieldCaption = "Web Service Address",
-        Documentation.FieldDescription = "Address of the eWay-CRM WebService",
-        Documentation.SampleValues = { "https://eway.example.com" }
-    ]),
-    FolderName as (type text meta [
+    optional FolderName as (type text meta [
         Documentation.FieldCaption = "Module",
-        Documentation.FieldDescription = "Name of the eWay-CRM module.",
+        Documentation.FieldDescription = "Name of the eWay-CRM module (Users by default).",
         Documentation.AllowedValues = {
             "Bookkeeping", "Calendar", "Categories", "Companies", "Contacts", "Deals", "Discount Lists", "Documents",
             "Drop Down Menus", "Drop Down Menu Values", "Emails", "Exchange Rates", "Journal", "Marketing",
@@ -26,10 +21,11 @@ eWay_CRM_Type = type function (
     ]))
     as table;
 
-eWay_CRM_Implementaion = (WebServiceUrl as text, FolderName as text, optional IncludeRelations as logical) =>
+eWay_CRM_Implementaion = (optional FolderName as text, optional IncludeRelations as logical) =>
     let
         Credential = Extension.CurrentCredential(),
-        FolderName = if (FolderName = "Bookkeeping") then "Carts"
+        FolderName = if (FolderName = null) then "Users"
+            else if (FolderName = "Bookkeeping") then "Carts"
             else if (FolderName = "Deals") then "Leads"
             else if (FolderName = "Calendar") then "Calendars"
             else if (FolderName = "Categories") then "Groups"
@@ -44,14 +40,19 @@ eWay_CRM_Implementaion = (WebServiceUrl as text, FolderName as text, optional In
             else if (FolderName = "Products in Bookkeeping Record") then "GoodsInCart"
             else if (FolderName = "Time Sheets") then "WorkReports"
             else if (FolderName = "Workflow History") then "WorkflowHistoryRecords" else FolderName,
+        UrlParts = Text.Split(Credential[Username], "@"),
+        Username = UrlParts{0},
+        WebServiceUrl = "https://" & UrlParts{1},
+        Password = Credential[Password],
         LoginUrl = WebServiceUrl & "/WcfService/Service.svc/Login",
         IncludeRelations = if (IncludeRelations = null) then false else IncludeRelations,
         IncludeRelationsParameter = if (IncludeRelations = true) then "true" else "false",
-        SessionBody = "{ ""userName"": """ & Credential[Username] & """, ""passwordHash"": """ & Credential[Password] & """, ""appVersion"": ""PowerBI_Connector_10"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
+        SessionBody = "{ ""userName"": """ & Username & """, ""passwordHash"": """ & Password & """, ""appVersion"": ""PowerBI_Connector_10"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
         SessionResult = Json.Document(Web.Contents(LoginUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
-                Content = Text.ToBinary(SessionBody)
+                Content = Text.ToBinary(SessionBody),
+                IsRetry = true
             ]
         )),
         SessionId = SessionResult[SessionId],
@@ -60,7 +61,8 @@ eWay_CRM_Implementaion = (WebServiceUrl as text, FolderName as text, optional In
         DataResult  = Json.Document(Web.Contents(DataUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
-                Content = Text.ToBinary(DataBody)
+                Content = Text.ToBinary(DataBody),
+                Timeout=#duration(0, 0, 5, 0)
             ]
         )),
         JsonData = DataResult[Data],
@@ -71,7 +73,9 @@ eWay_CRM_Implementaion = (WebServiceUrl as text, FolderName as text, optional In
 // Data Source Kind description
 eWay_CRM = [
     Authentication = [
-        UsernamePassword = []
+        UsernamePassword = [
+            UsernameLabel = Extension.LoadString("UsernameLabel")
+        ]
     ],
     Label = Extension.LoadString("DataSourceLabel")
 ];
