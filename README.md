@@ -23,7 +23,7 @@ Locate eWay-CRM in the data sources.
 
 ![get_data](Images/get_data.png)
 
-Fill in your eWay-CRM credentials. **Password** has to be hashed using **MD5**. You can use our tool [MD5 Convertor](https://eway.cr/md5) to create the hash.
+Fill in your eWay-CRM credentials. **Password** has to be hashed using **MD5**. You can use our tool [MD5 Generator](https://eway.cr/md5) to create the hash.
 
 ![authentification](Images/authentification.png)
 
