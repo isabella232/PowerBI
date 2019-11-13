@@ -31,4 +31,4 @@ Select required tables and click **Transform Data** to convert JSON structure to
 
 Click on the Expand icon in the Column1 header and select required columns. After you click OK data will be converted to a table.
 
-![expand](Images/expand.png)
+![expand_columns](Images/expand_columns.png)
