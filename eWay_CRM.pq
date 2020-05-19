@@ -44,7 +44,7 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         )),
         AdditionalFieldsJsonData = AdditionalFields[Data],
         AdditionalFieldsJsonDataTable = Table.FromList(AdditionalFieldsJsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
-        AdditionalFieldsTable = FilterAdditionalFields(ExpandRows(AdditionalFieldsJsonDataTable, GetSchemaForEntity("AdditionalFields"))),
+        AdditionalFieldsTable = FilterAdditionalFields(ExpandRows(AdditionalFieldsJsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity("AdditionalFields")))),
         JsonData = DataResult[Data],
         JsonDataTable = Table.FromList(JsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
         Table = ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), AdditionalFieldsTable)
@@ -227,11 +227,23 @@ StandardFields = #table({"Name", "Type"}, {
 
 SchemaTable = #table({"Entity", "SchemaTable"}, {
     {"AdditionalFields", #table({"Name", "Type"}, {
-        {"ItemGUID", type text},
-        {"AdditionalFields", type text},
-        {"Name", type text},
+        {"AssociatedEnumTypeGuid", type text},
+        {"CategoryEn", type text},
+        {"Comment", type text},
+        {"Data", type text},
+        {"Data_EditMask", type text},
+        {"Data_FormatType", type text},
+        {"Data_IsDateTime", type logical},
+        {"Data_LinkType", type text},
+        {"Data_MemoBoxLines", type number},
+        {"Data_RelatedFolderName", type text},
+        {"Data_SummaryType", type text},
         {"FieldId", type number},
+        {"IsInGeneralSection", type logical},
+        {"Name", type text},
         {"ObjectTypeFolderName", type text},
+        {"ObjectTypeId", type number},
+        {"Rank", type number},
         {"Type", type number}
     })},
     {"Calendars", #table({"Name", "Type"}, {
@@ -292,6 +304,20 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
         {"Contacts_ContactPersonGuid", type text},
         {"Leads_CartGuid", type text},
         {"Projects_CartGuid", type text}
+    })},
+    {"Groups", #table({"Name", "Type"}, {
+        {"Description", type text},
+        {"DisallowControlColumnPermissions", type logical},
+        {"DisallowControlModulePermissions", type logical},
+        {"DisallowControlUserAssignment", type logical},
+        {"GroupName", type text},
+        {"IsAdmin", type logical},
+        {"IsCategory", type logical},
+        {"IsOutlookCategory", type logical},
+        {"IsPM", type logical},
+        {"IsRole", type logical},
+        {"ResponsibilityDescription", type text},
+        {"System", type logical}
     })},
     {"Users", #table({"Name", "Type"}, {
         {"BankAccount", type text},
