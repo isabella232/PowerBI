@@ -191,7 +191,7 @@ SchemaTransformTable = (table as table, schema as table, optional enforceSchema 
 ExpandRows = (table as table, schema as table, optional additionalFields as table) as table =>
     let
         schemaNames = schema[Name],
-        expanded = Table.ExpandRecordColumn(table, "Column1", schemaNames),
+        expanded = if (Table.HasColumns(table, { "Column1" })) then Table.ExpandRecordColumn(table, "Column1", schemaNames) else table,
         expandedWithAdditionalFields = if (additionalFields = null) then expanded else Table.ExpandRecordColumn(expanded, "AdditionalFields", GetAdditionalFieldNames(additionalFields)),
         schemaWithAdditionalFields = if (additionalFields = null) then schema else InsertAdditionalFieldsToSchema(additionalFields, schema),
         data = SchemaTransformTable(expandedWithAdditionalFields, schemaWithAdditionalFields)
@@ -233,6 +233,21 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
         {"FieldId", type number},
         {"ObjectTypeFolderName", type text},
         {"Type", type number}
+    })},
+    {"Calendars", #table({"Name", "Type"}, {
+        {"BusyStatus", type number},
+        {"BusyStatusEn", type text},
+        {"EndDate", type datetime},
+        {"IsAllDayEvent", type logical},
+        {"Location", type text},
+        {"Note", type text},
+        {"Sensitivity", type number},
+        {"StartDate", type datetime},
+        {"Companies_TaskParentGuid", type text},
+        {"Contacts_TaskParentGuid", type text},
+        {"Leads_TaskParentGuid", type text},
+        {"Marketing_TaskParentGuid", type text},
+        {"Projects_TaskParentGuid", type text}
     })},
     {"Carts", #table({"Name", "Type"}, {
         {"AccountingCaseDate", type datetime},
