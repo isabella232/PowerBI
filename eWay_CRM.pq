@@ -216,12 +216,12 @@ StandardFields = #table({"Name", "Type"}, {
         {"AdditionalFields", type text},
         {"FileAs", type text},
         {"CreatedByGUID", type text},
-        {"ItemChanged", type text},
-        {"ItemCreated", type text},
+        {"ItemChanged", type datetime},
+        {"ItemCreated", type datetime},
         {"ModifiedByGUID", type text},
         {"OwnerGUID", type text},
-        {"Server_ItemChanged", type text},
-        {"Server_ItemCreated", type text}
+        {"Server_ItemChanged", type datetime},
+        {"Server_ItemCreated", type datetime}
     });
 
 SchemaTable = #table({"Entity", "SchemaTable"}, {
@@ -237,7 +237,7 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
         {"IsPrivate", type logical},
         {"BankAccount", type text},
         {"BirthPlace", type text},
-        {"Birthdate", type text},
+        {"Birthdate", type datetime},
         {"BusinessPhoneNumber", type text},
         {"BusinessPhoneNumberNormalized", type text},
         {"Email1Address", type text},
