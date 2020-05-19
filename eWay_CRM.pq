@@ -25,7 +25,7 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         )),
         SessionId = SessionResult[SessionId],
         DataUrl = WebServiceUrl & "/API.svc/Get" & FolderName,
-        DataBody = "{ ""sessionId"": """ & SessionId & """, ""includeRelations"": " & IncludeRelationsParameter & ", ""includeForeignKeys"": true }",
+        DataBody = "{ ""sessionId"": """ & SessionId & """, ""includeRelations"": " & IncludeRelationsParameter & ", ""includeForeignKeys"": true, ""omitGoodsInCart"": true }",
         DataResult = Json.Document(Web.Contents(DataUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
@@ -221,7 +221,8 @@ StandardFields = #table({"Name", "Type"}, {
         {"ModifiedByGUID", type text},
         {"OwnerGUID", type text},
         {"Server_ItemChanged", type datetime},
-        {"Server_ItemCreated", type datetime}
+        {"Server_ItemCreated", type datetime},
+        {"IsPrivate", type logical}
     });
 
 SchemaTable = #table({"Entity", "SchemaTable"}, {
@@ -233,8 +234,51 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
         {"ObjectTypeFolderName", type text},
         {"Type", type number}
     })},
+    {"Carts", #table({"Name", "Type"}, {
+        {"AccountingCaseDate", type datetime},
+        {"CurrencyEn", type text},
+        {"EffectiveFrom", type datetime},
+        {"ForPayment", type number},
+        {"ForPaymentDefaultCurrency", type number},
+        {"ForPaymentParentCurrency", type number},
+        {"GoodsInCartCount", type number},
+        {"Id", type number},
+        {"IsActive", type logical},
+        {"Note", type text},
+        {"Paid", type number},
+        {"PaidChanged", type datetime},
+        {"PaidDefaultCurrency", type number},
+        {"PaidParentCurrency", type number},
+        {"PaymentDate", type datetime},
+        {"PrevStateEn", type text},
+        {"PriceTotal", type number},
+        {"PriceTotalChanged", type datetime},
+        {"PriceTotalDefaultCurrency", type number},
+        {"PriceTotalExcludingVat", type number},
+        {"PriceTotalExcludingVatDefaultCurrency", type number},
+        {"PriceTotalExcludingVatParentCurrency", type number},
+        {"PriceTotalParentCurrency", type number},
+        {"Profit", type number},
+        {"ProfitChanged", type datetime},
+        {"ProfitDefaultCurrency", type number},
+        {"ProfitParentCurrency", type number},
+        {"PurchaseExpenses", type number},
+        {"PurchaseExpensesChanged", type datetime},
+        {"PurchaseExpensesDefaultCurrency", type number},
+        {"PurchaseExpensesParentCurrency", type number},
+        {"StateEn", type text},
+        {"TaxableSupplyDate", type datetime},
+        {"TypeEn", type text},
+        {"ValidUntil", type datetime},
+        {"Vat", type number},
+        {"VatDefaultCurrency", type number},
+        {"VatParentCurrency", type number},
+        {"Companies_CustomerGuid", type text},
+        {"Contacts_ContactPersonGuid", type text},
+        {"Leads_CartGuid", type text},
+        {"Projects_CartGuid", type text}
+    })},
     {"Users", #table({"Name", "Type"}, {
-        {"IsPrivate", type logical},
         {"BankAccount", type text},
         {"BirthPlace", type text},
         {"Birthdate", type datetime},
@@ -309,7 +353,7 @@ GetAdditionalFieldType = (fieldType as number) as type =>
     let
         tableType = if (fieldType) = 2 then type number else
             if (fieldType) = 4 then type logical else
-            if (fieldType) = 6 then type date
+            if (fieldType) = 6 then type datetime
             else type text
     in
         tableType;
