@@ -29,10 +29,6 @@ Fill in your eWay-CRM credentials. **Password** has to be hashed using **MD5**. 
 
 After that Navigator menu will appear with all supported tables.
 
-Select required tables and click **Transform Data** to convert JSON structure to a Table.
+Select required tables and click **Load**.
 
 ![navigator](Images/navigator.png)
-
-Click on the Expand icon in the Column1 header and select required columns. After you click OK data will be converted to a table.
-
-![expand_columns](Images/expand_columns.png)
