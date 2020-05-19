@@ -26,17 +26,30 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         SessionId = SessionResult[SessionId],
         DataUrl = WebServiceUrl & "/API.svc/Get" & FolderName,
         DataBody = "{ ""sessionId"": """ & SessionId & """, ""includeRelations"": " & IncludeRelationsParameter & ", ""includeForeignKeys"": true }",
-        DataResult  = Json.Document(Web.Contents(DataUrl,
+        DataResult = Json.Document(Web.Contents(DataUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
                 Content = Text.ToBinary(DataBody),
                 Timeout=#duration(0, 0, 5, 0)
             ]
         )),
+        AdditionalFieldsUrl = WebServiceUrl & "/API.svc/SearchAdditionalFields",
+        AdditionalFieldsBody = "{ ""sessionId"": """ & SessionId & """,	""transmitObject"": { ""ObjectTypeFolderName"": """ & FolderName & """ } }",
+        AdditionalFields = Json.Document(Web.Contents(AdditionalFieldsUrl,
+            [
+                Headers = [#"Content-Type"="application/json"],
+                Content = Text.ToBinary(AdditionalFieldsBody),
+                Timeout=#duration(0, 0, 1, 0)
+            ]
+        )),
+        AdditionalFieldsJsonData = AdditionalFields[Data],
+        AdditionalFieldsJsonDataTable = Table.FromList(AdditionalFieldsJsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+        AdditionalFieldsTable = FilterAdditionalFields(ExpandRows(AdditionalFieldsJsonDataTable, GetSchemaForEntity("AdditionalFields"))),
         JsonData = DataResult[Data],
-        #"Converted to Table" = Table.FromList(JsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error)
+        JsonDataTable = Table.FromList(JsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+        Table = ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), AdditionalFieldsTable)
     in
-        #"Converted to Table";
+        Table;
 
 eWayCRM_Type = type function (
     optional IncludeRelations as (type logical meta [
@@ -117,6 +130,189 @@ eWayCRM = [
     ],
     Label = Extension.LoadString("DataSourceLabel")
 ];
+
+EnforceSchema.Strict = 1;               // Add any missing columns, remove extra columns, set table type
+EnforceSchema.IgnoreExtraColumns = 2;   // Add missing columns, do not remove extra columns
+EnforceSchema.IgnoreMissingColumns = 3; // Do not add or remove columns
+
+SchemaTransformTable = (table as table, schema as table, optional enforceSchema as number) as table =>
+    let
+        // Default to EnforceSchema.Strict
+        _enforceSchema = if (enforceSchema <> null) then enforceSchema else EnforceSchema.Strict,
+
+        // Applies type transforms to a given table
+        EnforceTypes = (table as table, schema as table) as table =>
+            let
+                map = (t) => if Type.Is(t, type list) or Type.Is(t, type record) or t = type any then null else t,
+                mapped = Table.TransformColumns(schema, {"Type", map}),
+                omitted = Table.SelectRows(mapped, each [Type] <> null),
+                existingColumns = Table.ColumnNames(table),
+                removeMissing = Table.SelectRows(omitted, each List.Contains(existingColumns, [Name])),
+                primativeTransforms = Table.ToRows(removeMissing),
+                changedPrimatives = Table.TransformColumnTypes(table, primativeTransforms)
+            in
+                changedPrimatives,
+
+        // Returns the table type for a given schema
+        SchemaToTableType = (schema as table) as type =>
+            let
+                toList = List.Transform(schema[Type], (t) => [Type=t, Optional=false]),
+                toRecord = Record.FromList(toList, schema[Name]),
+                toType = Type.ForRecord(toRecord, false)
+            in
+                type table (toType),
+
+        // Determine if we have extra/missing columns.
+        // The enforceSchema parameter determines what we do about them.
+        schemaNames = schema[Name],
+        foundNames = Table.ColumnNames(table),
+        addNames = List.RemoveItems(schemaNames, foundNames),
+        extraNames = List.RemoveItems(foundNames, schemaNames),
+        tmp = Text.NewGuid(),
+        added = Table.AddColumn(table, tmp, each []),
+        expanded = Table.ExpandRecordColumn(added, tmp, addNames),
+        result = if List.IsEmpty(addNames) then table else expanded,
+        fullList =
+            if (_enforceSchema = EnforceSchema.Strict) then
+                schemaNames
+            else if (_enforceSchema = EnforceSchema.IgnoreMissingColumns) then
+                foundNames
+            else
+                schemaNames & extraNames,
+
+        // Select the final list of columns.
+        // These will be ordered according to the schema table.
+        reordered = Table.SelectColumns(result, fullList, MissingField.Ignore),
+        enforcedTypes = EnforceTypes(reordered, schema),
+        withType = if (_enforceSchema = EnforceSchema.Strict) then Value.ReplaceType(enforcedTypes, SchemaToTableType(schema)) else enforcedTypes
+    in
+        withType;
+
+ExpandRows = (table as table, schema as table, optional additionalFields as table) as table =>
+    let
+        schemaNames = schema[Name],
+        expanded = Table.ExpandRecordColumn(table, "Column1", schemaNames),
+        expandedWithAdditionalFields = if (additionalFields = null) then expanded else Table.ExpandRecordColumn(expanded, "AdditionalFields", GetAdditionalFieldNames(additionalFields)),
+        schemaWithAdditionalFields = if (additionalFields = null) then schema else InsertAdditionalFieldsToSchema(additionalFields, schema),
+        data = SchemaTransformTable(expandedWithAdditionalFields, schemaWithAdditionalFields)
+    in
+        data;
+
+FilterAdditionalFields = (additionalFields as table) as table =>
+    let
+        filtered = Table.SelectRows(additionalFields, each [Type] <> 8)
+    in
+        filtered;
+
+GetAdditionalFieldNames = (additionalFields as table) as list =>
+    let
+        names = Table.TransformRows(additionalFields, each "af_" & Number.ToText([FieldId]))
+    in
+        names;
+
+StandardFields = #table({"Name", "Type"}, {
+        {"ItemGUID", type text},
+        {"ItemVersion", type number},
+        {"AdditionalFields", type text},
+        {"FileAs", type text},
+        {"CreatedByGUID", type text},
+        {"ItemChanged", type text},
+        {"ItemCreated", type text},
+        {"ModifiedByGUID", type text},
+        {"OwnerGUID", type text},
+        {"Server_ItemChanged", type text},
+        {"Server_ItemCreated", type text}
+    });
+
+SchemaTable = #table({"Entity", "SchemaTable"}, {
+    {"AdditionalFields", #table({"Name", "Type"}, {
+        {"ItemGUID", type text},
+        {"AdditionalFields", type text},
+        {"Name", type text},
+        {"FieldId", type number},
+        {"ObjectTypeFolderName", type text},
+        {"Type", type number}
+    })},
+    {"Users", #table({"Name", "Type"}, {
+        {"IsPrivate", type logical},
+        {"BankAccount", type text},
+        {"BirthPlace", type text},
+        {"Birthdate", type text},
+        {"BusinessPhoneNumber", type text},
+        {"BusinessPhoneNumberNormalized", type text},
+        {"Email1Address", type text},
+        {"Email2Address", type text},
+        {"FamilyStatusEn", type text},
+        {"FirstName", type text},
+        {"HealthInsurance", type text},
+        {"HolidayLength", type number},
+        {"HomeAddressCity", type text},
+        {"HomeAddressCountryEn", type text},
+        {"HomeAddressPOBox", type text},
+        {"HomeAddressPostalCode", type text},
+        {"HomeAddressState", type text},
+        {"HomeAddressStreet", type text},
+        {"ICQ", type text},
+        {"IDCardNumber", type text},
+        {"IdentificationNumber", type text},
+        {"IsActive", type logical},
+        {"IsHRManager", type logical},
+        {"IsProjectManager", type logical},
+        {"IsSystem", type logical},
+        {"JobTitle", type text},
+        {"LastName", type text},
+        {"MSN", type text},
+        {"MiddleName", type text},
+        {"MobilePhoneNumber", type text},
+        {"MobilePhoneNumberNormalized", type text},
+        {"Note", type text},
+        {"PersonalIdentificationNumber", type text},
+        {"PrefixEn", type text},
+        {"ProfilePicture", type binary},
+        {"ProfilePictureHeight", type number},
+        {"ProfilePictureWidth", type number},
+        {"RemainingDaysOfHoliday", type number},
+        {"SalaryDateEn", type text},
+        {"Skype", type text},
+        {"SuffixEn", type text},
+        {"TimeAccessibility", type text},
+        {"TransportMode", type text},
+        {"TravelDistance", type text},
+        {"Username", type text},
+        {"WorkdayStartTime", type text},
+        {"Users_SupervisorGuid", type text}
+    })},
+    {"Leads", #table({"Name", "Type"}, {
+        {"ItemGUID", type text},
+        {"AdditionalFields", type text},
+        {"FileAs", type text},
+        {"Probability", type number}
+    })}
+});
+
+GetSchemaForEntity = (entity as text) as table => try SchemaTable{[Entity=entity]}[SchemaTable] otherwise error "Couldn't find entity: '" & entity &"'";
+
+InsertAdditionalFieldsToSchema = (additionalFields as table, schema as table) as table =>
+    let
+        filteredSchema = Table.SelectRows(schema, each [Name] <> "AdditionalFields"),
+        table = Table.InsertRows(filteredSchema, 0, Table.TransformRows(additionalFields, (row) as record => [Name = "af_" & Number.ToText(row[FieldId]), Type = GetAdditionalFieldType(row[Type])]))
+    in
+        table;
+
+InsertStandardFieldsToSchema = (schema as table) as table =>
+    let
+        table = Table.InsertRows(schema, 0, Table.TransformRows(StandardFields, (row) as record => [Name = row[Name], Type = row[Type]]))
+    in
+        table;
+
+GetAdditionalFieldType = (fieldType as number) as type =>
+    let
+        tableType = if (fieldType) = 2 then type number else
+            if (fieldType) = 4 then type logical else
+            if (fieldType) = 6 then type date
+            else type text
+    in
+        tableType;
 
 // Data Source UI publishing description
 eWayCRM.Publish = [
