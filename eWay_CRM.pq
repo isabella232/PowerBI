@@ -1,5 +1,5 @@
 ﻿// This file contains your Data Connector logic
-[Version = "1.3.1"]
+[Version = "1.4.0"]
 section eWayCRM;
 
 [DataSource.Kind="eWayCRM", Publish="eWayCRM.Publish"]
@@ -15,7 +15,7 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         LoginUrl = WebServiceUrl & "/API.svc/Login",
         IncludeRelations = if (IncludeRelations = null) then false else IncludeRelations,
         IncludeRelationsParameter = if (IncludeRelations = true) then "true" else "false",
-        SessionBody = "{ ""userName"": """ & Username & """, ""passwordHash"": """ & Password & """, ""appVersion"": ""PowerBI_Connector_131"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
+        SessionBody = "{ ""userName"": """ & Username & """, ""passwordHash"": """ & Password & """, ""appVersion"": ""PowerBI_Connector_140"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
         SessionResult = Json.Document(Web.Contents(LoginUrl,
             [
                 Headers = [#"Content-Type"="application/json"],

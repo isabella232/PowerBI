@@ -107,7 +107,7 @@
     <MakeDir Directories="$(OutputPath)" />
     <Copy SourceFiles="@(NonPQFiles)" DestinationFolder="$(IntermediateOutputPath)" />
     <Copy SourceFiles="@(PQFiles)" DestinationFiles="@(PQFiles->'$(IntermediateOutputPath)%(RecursiveDir)%(FileName).m')" />
-    <BuildExtension InputDirectory="$(IntermediateOutputPath)" OutputFile="$(OutputPath)\$(ProjectName).mez" />
+    <BuildExtension InputDirectory="$(IntermediateOutputPath)" OutputFile="$(OutputPath)\eWay_CRM.mez" />
   </Target>
   <Target Name="ExtensionClean">
     <!-- Remove obj folder -->
