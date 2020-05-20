@@ -1,5 +1,5 @@
 ﻿// This file contains your Data Connector logic
-[Version = "1.4.1"]
+[Version = "1.4.2"]
 section eWayCRM;
 
 [DataSource.Kind="eWayCRM", Publish="eWayCRM.Publish"]
@@ -11,11 +11,12 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         UrlParts = Text.Split(Credential[Username], "@"),
         Username = UrlParts{0},
         WebServiceUrl = "https://" & UrlParts{1},
+        ApiUrl = if (Text.EndsWith(WebServiceUrl, ".svc")) then WebServiceUrl & "/" else Text.TrimEnd(WebServiceUrl, "/") & "/API.svc/",
         Password = Credential[Password],
-        LoginUrl = WebServiceUrl & "/API.svc/Login",
+        LoginUrl = ApiUrl & "Login",
         IncludeRelations = if (IncludeRelations = null) then false else IncludeRelations,
         IncludeRelationsParameter = if (IncludeRelations = true) then "true" else "false",
-        SessionBody = "{ ""userName"": """ & Username & """, ""passwordHash"": """ & Password & """, ""appVersion"": ""PowerBI_Connector_141"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
+        SessionBody = "{ ""userName"": """ & Username & """, ""passwordHash"": """ & Password & """, ""appVersion"": ""PowerBI_Connector_142"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
         SessionResult = Json.Document(Web.Contents(LoginUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
@@ -24,7 +25,7 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
             ]
         )),
         SessionId = SessionResult[SessionId],
-        DataUrl = WebServiceUrl & "/API.svc/Get" & FolderName,
+        DataUrl = ApiUrl & "Get" & FolderName,
         DataBody = "{ ""sessionId"": """ & SessionId & """, ""includeRelations"": " & IncludeRelationsParameter & ", ""includeForeignKeys"": true, ""omitGoodsInCart"": true }",
         DataResult = Json.Document(Web.Contents(DataUrl,
             [
@@ -33,7 +34,7 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
                 Timeout=#duration(0, 0, 5, 0)
             ]
         )),
-        AdditionalFieldsUrl = WebServiceUrl & "/API.svc/SearchAdditionalFields",
+        AdditionalFieldsUrl = ApiUrl & "/SearchAdditionalFields",
         AdditionalFieldsBody = "{ ""sessionId"": """ & SessionId & """,	""transmitObject"": { ""ObjectTypeFolderName"": """ & FolderName & """ } }",
         AdditionalFields = Json.Document(Web.Contents(AdditionalFieldsUrl,
             [

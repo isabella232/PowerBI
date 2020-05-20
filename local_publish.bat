@@ -1,0 +1,2 @@
+copy %~dp0bin\Release\eWay_CRM.mez "%USERPROFILE%\Documents\Power BI Desktop\Custom Connectors"
+copy %~dp0bin\Release\eWay_CRM.mez "C:\Windows\ServiceProfiles\PBIEgwService\Documents\Power BI Desktop\Custom Connectors"
