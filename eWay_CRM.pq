@@ -1,5 +1,5 @@
 ﻿// This file contains your Data Connector logic
-[Version = "1.4.0"]
+[Version = "1.4.1"]
 section eWayCRM;
 
 [DataSource.Kind="eWayCRM", Publish="eWayCRM.Publish"]
@@ -15,7 +15,7 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         LoginUrl = WebServiceUrl & "/API.svc/Login",
         IncludeRelations = if (IncludeRelations = null) then false else IncludeRelations,
         IncludeRelationsParameter = if (IncludeRelations = true) then "true" else "false",
-        SessionBody = "{ ""userName"": """ & Username & """, ""passwordHash"": """ & Password & """, ""appVersion"": ""PowerBI_Connector_140"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
+        SessionBody = "{ ""userName"": """ & Username & """, ""passwordHash"": """ & Password & """, ""appVersion"": ""PowerBI_Connector_141"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
         SessionResult = Json.Document(Web.Contents(LoginUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
@@ -44,10 +44,10 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         )),
         AdditionalFieldsJsonData = AdditionalFields[Data],
         AdditionalFieldsJsonDataTable = Table.FromList(AdditionalFieldsJsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
-        AdditionalFieldsTable = FilterAdditionalFields(ExpandRows(AdditionalFieldsJsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity("AdditionalFields")))),
+        AdditionalFieldsTable = FilterAdditionalFields(ExpandRows(AdditionalFieldsJsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity("AdditionalFields")), IncludeRelations)),
         JsonData = DataResult[Data],
         JsonDataTable = Table.FromList(JsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
-        Table = ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), AdditionalFieldsTable)
+        Table = ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), IncludeRelations, AdditionalFieldsTable)
     in
         Table;
 
@@ -189,12 +189,15 @@ SchemaTransformTable = (table as table, schema as table, optional enforceSchema 
     in
         withType;
 
-ExpandRows = (table as table, schema as table, optional additionalFields as table) as table =>
+ExpandRows = (table as table, schema as table, includeRelations as logical, optional additionalFields as table) as table =>
     let
         schemaNames = schema[Name],
         expanded = if (Table.HasColumns(table, { "Column1" })) then Table.ExpandRecordColumn(table, "Column1", schemaNames) else table,
-        expandedWithAdditionalFields = if (additionalFields = null) then expanded else Table.ExpandRecordColumn(expanded, "AdditionalFields", GetAdditionalFieldNames(additionalFields)),
-        schemaWithAdditionalFields = if (additionalFields = null) then schema else InsertAdditionalFieldsToSchema(additionalFields, schema),
+        expandedWithRelations = if (includeRelations and Table.HasColumns(expanded, { "Relations" })) then Table.ExpandListColumn(expanded, "Relations") else expanded,
+        expandedWithRelationRecords = if (includeRelations and Table.HasColumns(expandedWithRelations, { "Relations" })) then Table.ExpandRecordColumn(expandedWithRelations, "Relations", RelationsSchema[OriginalName], RelationsSchema[Name]) else expandedWithRelations,
+        schemaWithRelations = if (includeRelations and Table.HasColumns(expandedWithRelations, { "Relations" })) then InsertRelationFieldsToSchema(schema) else schema,
+        expandedWithAdditionalFields = if (additionalFields = null) then expandedWithRelationRecords else Table.ExpandRecordColumn(expandedWithRelationRecords, "AdditionalFields", GetAdditionalFieldNames(additionalFields)),
+        schemaWithAdditionalFields = if (additionalFields = null) then schemaWithRelations else InsertAdditionalFieldsToSchema(additionalFields, schemaWithRelations),
         data = SchemaTransformTable(expandedWithAdditionalFields, schemaWithAdditionalFields)
     in
         data;
@@ -211,10 +214,21 @@ GetAdditionalFieldNames = (additionalFields as table) as list =>
     in
         names;
 
+RelationsSchema = #table({"OriginalName", "Type", "Name"}, {
+        {"DifferDirection", type logical, "Relations_DifferDirection"},
+        {"ForeignFolderName", type text, "Relations_ForeignFolderName"},
+        {"ForeignItemGUID", type text, "Relations_ForeignItemGUID"},
+        {"ItemGUID", type text, "Relations_ItemGUID"},
+        {"OwnerGUID", type text, "Relations_OwnerGUID"},
+        {"RelationDataGUID", type text, "Relations_RelationDataGUID"},
+        {"RelationType", type text, "Relation_sRelationType"}
+    });
+
 StandardFields = #table({"Name", "Type"}, {
         {"ItemGUID", type text},
         {"ItemVersion", type number},
         {"AdditionalFields", type text},
+        {"Relations", type text},
         {"FileAs", type text},
         {"CreatedByGUID", type text},
         {"ItemChanged", type datetime},
@@ -944,6 +958,13 @@ InsertAdditionalFieldsToSchema = (additionalFields as table, schema as table) as
     let
         filteredSchema = Table.SelectRows(schema, each [Name] <> "AdditionalFields"),
         table = Table.InsertRows(filteredSchema, 0, Table.TransformRows(additionalFields, (row) as record => [Name = "af_" & Number.ToText(row[FieldId]), Type = GetAdditionalFieldType(row[Type])]))
+    in
+        table;
+
+InsertRelationFieldsToSchema = (schema as table) as table =>
+    let
+        filteredSchema = Table.SelectRows(schema, each [Name] <> "Relations"),
+        table = Table.InsertRows(filteredSchema, 0, Table.TransformRows(RelationsSchema, (row) as record => [Name = row[Name], Type = row[Type]]))
     in
         table;
 
