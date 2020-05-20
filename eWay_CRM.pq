@@ -125,7 +125,8 @@ eWayCRM = [
     TestConnection = (dataSourcePath) => { "eWayCRM.Contents" },
     Authentication = [
         UsernamePassword = [
-            UsernameLabel = Extension.LoadString("UsernameLabel")
+            UsernameLabel = Extension.LoadString("UsernameLabel"),
+            PasswordLabel = Extension.LoadString("PasswordLabel")
         ]
     ],
     Label = Extension.LoadString("DataSourceLabel")

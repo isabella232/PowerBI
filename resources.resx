@@ -126,6 +126,9 @@
   <data name="DataSourceLabel" xml:space="preserve">
     <value>eWay-CRM</value>
   </data>
+  <data name="PasswordLabel" xml:space="preserve">
+    <value>Password (MD5 hash, https://eway.cr/md5)</value>
+  </data>
   <data name="UsernameLabel" xml:space="preserve">
     <value>Username with Your Web Service Address (eg. user1@hosting.eway-crm.com/mycompany)</value>
   </data>
