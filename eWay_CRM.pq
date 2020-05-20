@@ -1,5 +1,5 @@
 ﻿// This file contains your Data Connector logic
-[Version = "1.4.2"]
+[Version = "1.4.3"]
 section eWayCRM;
 
 [DataSource.Kind="eWayCRM", Publish="eWayCRM.Publish"]
@@ -16,7 +16,7 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         LoginUrl = ApiUrl & "Login",
         IncludeRelations = if (IncludeRelations = null) then false else IncludeRelations,
         IncludeRelationsParameter = if (IncludeRelations = true) then "true" else "false",
-        SessionBody = "{ ""userName"": """ & Username & """, ""passwordHash"": """ & Password & """, ""appVersion"": ""PowerBI_Connector_142"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
+        SessionBody = "{ ""userName"": """ & Username & """, ""passwordHash"": """ & Password & """, ""appVersion"": ""PowerBI_Connector_143"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
         SessionResult = Json.Document(Web.Contents(LoginUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
@@ -197,8 +197,8 @@ ExpandRows = (table as table, schema as table, includeRelations as logical, opti
         expandedWithRelations = if (includeRelations and Table.HasColumns(expanded, { "Relations" })) then Table.ExpandListColumn(expanded, "Relations") else expanded,
         expandedWithRelationRecords = if (includeRelations and Table.HasColumns(expandedWithRelations, { "Relations" })) then Table.ExpandRecordColumn(expandedWithRelations, "Relations", RelationsSchema[OriginalName], RelationsSchema[Name]) else expandedWithRelations,
         schemaWithRelations = if (includeRelations and Table.HasColumns(expandedWithRelations, { "Relations" })) then InsertRelationFieldsToSchema(schema) else schema,
-        expandedWithAdditionalFields = if (additionalFields = null) then expandedWithRelationRecords else Table.ExpandRecordColumn(expandedWithRelationRecords, "AdditionalFields", GetAdditionalFieldNames(additionalFields)),
-        schemaWithAdditionalFields = if (additionalFields = null) then schemaWithRelations else InsertAdditionalFieldsToSchema(additionalFields, schemaWithRelations),
+        expandedWithAdditionalFields = if (additionalFields = null or not Table.HasColumns(expandedWithRelations, { "AdditionalFields" })) then expandedWithRelationRecords else Table.ExpandRecordColumn(expandedWithRelationRecords, "AdditionalFields", GetAdditionalFieldNames(additionalFields)),
+        schemaWithAdditionalFields = if (additionalFields = null or not Table.HasColumns(expandedWithRelations, { "AdditionalFields" })) then schemaWithRelations else InsertAdditionalFieldsToSchema(additionalFields, schemaWithRelations),
         data = SchemaTransformTable(expandedWithAdditionalFields, schemaWithAdditionalFields)
     in
         data;
