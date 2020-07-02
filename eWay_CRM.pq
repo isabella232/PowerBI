@@ -8,15 +8,13 @@ shared eWayCRM.Contents = Value.ReplaceType(eWayCRM_Implementation, eWayCRM_Type
 eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
     let
         Credential = Extension.CurrentCredential(),
-        UrlParts = Text.Split(Credential[Username], "@"),
-        Username = UrlParts{0},
-        WebServiceUrl = "https://" & UrlParts{1},
-        ApiUrl = if (Text.EndsWith(WebServiceUrl, ".svc")) then WebServiceUrl & "/" else Text.TrimEnd(WebServiceUrl, "/") & "/API.svc/",
-        Password = Credential[Password],
+        WebServiceUrl = GetWebServiceFromToken(Credential[access_token]),
+        UserName = GetUserNameFromToken(Credential[access_token]),
+        ApiUrl = if (Text.StartsWith(WebServiceUrl, "http://")) then WebServiceUrl & "InsecureAPI.svc/" else WebServiceUrl & "API.svc/",
         LoginUrl = ApiUrl & "Login",
         IncludeRelations = if (IncludeRelations = null) then false else IncludeRelations,
         IncludeRelationsParameter = if (IncludeRelations = true) then "true" else "false",
-        SessionBody = "{ ""userName"": """ & Username & """, ""passwordHash"": """ & Password & """, ""appVersion"": ""PowerBI_Connector_143"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
+        SessionBody = "{ ""userName"": """ & UserName & """, ""appVersion"": ""PowerBI_Connector_143"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
         SessionResult = Json.Document(Web.Contents(LoginUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
@@ -51,6 +49,32 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         Table = ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), IncludeRelations, AdditionalFieldsTable)
     in
         Table;
+
+AddPaddingToBase64String = (base64) =>
+    let
+        base64 = if (Number.Mod(Text.Length(base64), 4)) <> 0 then AddPaddingToBase64String(base64 & "=") else base64
+    in
+        base64;
+
+GetWebServiceFromToken = (token) =>
+    let
+        Json = Json.Document(Binary.FromText(AddPaddingToBase64String(Text.Split(token, "."){1}), BinaryEncoding.Base64)),
+        WebService = Record.Field(Json, "ws") & "/"
+    in
+        WebService;
+
+GetWebServiceFromRefreshToken = (token) =>
+    let
+        WebService = Text.FromBinary(Binary.FromText(AddPaddingToBase64String(Text.Split(token, "."){1}), BinaryEncoding.Base64))
+    in
+        WebService;
+
+GetUserNameFromToken = (token) =>
+    let
+        Json = Json.Document(Binary.FromText(AddPaddingToBase64String(Text.Split(token, "."){1}), BinaryEncoding.Base64)),
+        UserName = Record.Field(Json, "username")
+    in
+        UserName;
 
 eWayCRM_Type = type function (
     optional IncludeRelations as (type logical meta [
@@ -121,13 +145,67 @@ Table.ToNavigationTable = (
     in
         navigationTable;
 
+// OAuth2 flow definition
+redirectUri = "https://oauth.powerbi.com/views/oauthredirect.html";
+windowWidth = 458;
+windowHeight = 498;
+clientId = "powerbi";
+clientSecret = "secret";
+
+StartLogin = (resourceUrl, state, display) =>
+    let
+        AuthorizeUrl = "https://login.eway-crm.com/?" & Uri.BuildQueryString([
+            client_id = clientId,
+            scope = "api offline_access",
+            state = state,
+            redirect_uri = redirectUri,
+            response_type = "code"])
+    in
+        [
+            LoginUri = AuthorizeUrl,
+            CallbackUri = redirectUri,
+            WindowHeight = windowHeight,
+            WindowWidth = windowWidth,
+            Context = null
+        ];
+
+FinishLogin = (context, callbackUri, state) =>
+    let
+        Parts = Uri.Parts(callbackUri)[Query]
+    in
+        TokenMethod(Parts[code], "authorization_code", Parts[ws_url]);
+
+TokenMethod = (code, grant_type, ws_url) =>
+    let
+        Response = Web.Contents(ws_url & "/auth/connect/token", [
+            Content = Text.ToBinary(Uri.BuildQueryString([
+                client_id = clientId,
+                client_secret = clientSecret,
+                code = code,
+                refresh_token = code,
+                redirect_uri = redirectUri,
+                grant_type = grant_type])),
+            Headers=[#"Content-type" = "application/x-www-form-urlencoded",#"Accept" = "application/json"]]),
+        Parts = Json.Document(Response)
+    in
+        Parts;
+
+Refresh = (resourceUrl, refresh_token) =>
+    let
+        WebService = GetWebServiceFromRefreshToken(refresh_token),
+        Parts = TokenMethod(refresh_token, "refresh_token", WebService)
+    in
+        Parts;
+
 // Data Source Kind description
 eWayCRM = [
     TestConnection = (dataSourcePath) => { "eWayCRM.Contents" },
     Authentication = [
-        UsernamePassword = [
-            UsernameLabel = Extension.LoadString("UsernameLabel"),
-            PasswordLabel = Extension.LoadString("PasswordLabel")
+        OAuth = [
+            StartLogin = StartLogin,
+            FinishLogin = FinishLogin,
+            Refresh = Refresh,
+            Label = Extension.LoadString("AuthenticationLabel")
         ]
     ],
     Label = Extension.LoadString("DataSourceLabel")
