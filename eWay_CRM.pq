@@ -150,7 +150,7 @@ redirectUri = "https://oauth.powerbi.com/views/oauthredirect.html";
 windowWidth = 458;
 windowHeight = 498;
 clientId = "powerbi";
-clientSecret = "secret";
+clientSecret = Text.FromBinary(Extension.Contents("client_secret"));
 
 StartLogin = (resourceUrl, state, display) =>
     let

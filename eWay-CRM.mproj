@@ -67,9 +67,12 @@
     <Compile Include="resources.resx">
       <SubType>Code</SubType>
     </Compile>
-    <Content Include="eWay_CRM.query.pq">
+    <Compile Include="client_secret">
+      <SubType>Content</SubType>
+    </Compile>
+    <Compile Include="eWay_CRM.query.pq">
       <SubType>Code</SubType>
-    </Content>
+    </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <UsingTask TaskName="BuildExtension" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v12.0.dll">
