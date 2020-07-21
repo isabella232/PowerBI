@@ -50,6 +50,12 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
     in
         Table;
 
+Base64UrlToBase64 = (base64Url) =>
+    let
+        base64 = AddPaddingToBase64String(Text.Replace(Text.Replace(base64Url, "-", "+"), "_", "/"))
+    in
+        base64;
+
 AddPaddingToBase64String = (base64) =>
     let
         base64 = if (Number.Mod(Text.Length(base64), 4)) <> 0 then AddPaddingToBase64String(base64 & "=") else base64
@@ -58,20 +64,20 @@ AddPaddingToBase64String = (base64) =>
 
 GetWebServiceFromToken = (token) =>
     let
-        Json = Json.Document(Binary.FromText(AddPaddingToBase64String(Text.Split(token, "."){1}), BinaryEncoding.Base64)),
+        Json = Json.Document(Binary.FromText(Base64UrlToBase64(Text.Split(token, "."){1}), BinaryEncoding.Base64)),
         WebService = Record.Field(Json, "ws") & "/"
     in
         WebService;
 
 GetWebServiceFromRefreshToken = (token) =>
     let
-        WebService = Text.FromBinary(Binary.FromText(AddPaddingToBase64String(Text.Split(token, "."){1}), BinaryEncoding.Base64))
+        WebService = Text.FromBinary(Binary.FromText(Base64UrlToBase64(Text.Split(token, "."){1}), BinaryEncoding.Base64))
     in
         WebService;
 
 GetUserNameFromToken = (token) =>
     let
-        Json = Json.Document(Binary.FromText(AddPaddingToBase64String(Text.Split(token, "."){1}), BinaryEncoding.Base64)),
+        Json = Json.Document(Binary.FromText(Base64UrlToBase64(Text.Split(token, "."){1}), BinaryEncoding.Base64)),
         UserName = Record.Field(Json, "username")
     in
         UserName;
@@ -152,6 +158,15 @@ windowHeight = 498;
 clientId = "powerbi";
 clientSecret = Text.FromBinary(Extension.Contents("client_secret"));
 
+CreateSha256Hash = (codeVerifier) =>
+    let
+        Hash = Crypto.CreateHash(CryptoAlgorithm.SHA256, Text.ToBinary(codeVerifier)),
+        Base64Text = Binary.ToText(Hash, BinaryEncoding.Base64),
+        Base64TextTrimmed = Text.TrimEnd(Base64Text, "="),
+        Base64Url = Text.Replace(Text.Replace(Base64TextTrimmed, "+", "-"), "/", "_")
+    in
+        Base64Url;
+
 StartLogin = (resourceUrl, state, display) =>
     let
         CodeVerifier = Text.NewGuid() & Text.NewGuid(),
@@ -160,8 +175,8 @@ StartLogin = (resourceUrl, state, display) =>
             scope = "api offline_access",
             state = state,
             redirect_uri = redirectUri,
-            code_challenge = CodeVerifier,
-            code_challenge_method = "plain",
+            code_challenge = CreateSha256Hash(CodeVerifier),
+            code_challenge_method = "S256",
             response_type = "code"])
     in
         [
