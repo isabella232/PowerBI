@@ -154,11 +154,14 @@ clientSecret = Text.FromBinary(Extension.Contents("client_secret"));
 
 StartLogin = (resourceUrl, state, display) =>
     let
+        CodeVerifier = Text.NewGuid() & Text.NewGuid(),
         AuthorizeUrl = "https://login.eway-crm.com/?" & Uri.BuildQueryString([
             client_id = clientId,
             scope = "api offline_access",
             state = state,
             redirect_uri = redirectUri,
+            code_challenge = CodeVerifier,
+            code_challenge_method = "plain",
             response_type = "code"])
     in
         [
@@ -166,19 +169,20 @@ StartLogin = (resourceUrl, state, display) =>
             CallbackUri = redirectUri,
             WindowHeight = windowHeight,
             WindowWidth = windowWidth,
-            Context = null
+            Context = CodeVerifier
         ];
 
 FinishLogin = (context, callbackUri, state) =>
     let
         Parts = Uri.Parts(callbackUri)[Query]
     in
-        TokenMethod(Parts[code], "authorization_code", Parts[ws_url]);
+        TokenMethod(Parts[code], "authorization_code", Parts[ws_url], context);
 
-TokenMethod = (code, grant_type, ws_url) =>
+TokenMethod = (code, grant_type, ws_url, optional verifier) =>
     let
+        CodeVerifier = if (verifier <> null) then [code_verifier = verifier] else [],
         Response = Web.Contents(ws_url & "/auth/connect/token", [
-            Content = Text.ToBinary(Uri.BuildQueryString([
+            Content = Text.ToBinary(Uri.BuildQueryString(CodeVerifier & [
                 client_id = clientId,
                 client_secret = clientSecret,
                 code = code,
