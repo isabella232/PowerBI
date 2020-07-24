@@ -1,5 +1,5 @@
 ﻿// This file contains your Data Connector logic
-[Version = "1.4.3"]
+[Version = "1.5.0"]
 section eWayCRM;
 
 [DataSource.Kind="eWayCRM", Publish="eWayCRM.Publish"]
