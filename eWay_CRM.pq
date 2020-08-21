@@ -177,7 +177,8 @@ StartLogin = (resourceUrl, state, display) =>
             redirect_uri = redirectUri,
             code_challenge = CreateSha256Hash(CodeVerifier),
             code_challenge_method = "S256",
-            response_type = "code"])
+            response_type = "code",
+            prompt = "login"])
     in
         [
             LoginUri = AuthorizeUrl,
