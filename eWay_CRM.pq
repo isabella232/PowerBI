@@ -23,15 +23,6 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
             ]
         )),
         SessionId = SessionResult[SessionId],
-        DataUrl = ApiUrl & "Get" & FolderName,
-        DataBody = "{ ""sessionId"": """ & SessionId & """, ""includeRelations"": " & IncludeRelationsParameter & ", ""includeForeignKeys"": true, ""omitGoodsInCart"": true }",
-        DataResult = Json.Document(Web.Contents(DataUrl,
-            [
-                Headers = [#"Content-Type"="application/json"],
-                Content = Text.ToBinary(DataBody),
-                Timeout=#duration(0, 0, 5, 0)
-            ]
-        )),
         AdditionalFieldsUrl = ApiUrl & "/SearchAdditionalFields",
         AdditionalFieldsBody = "{ ""sessionId"": """ & SessionId & """,	""transmitObject"": { ""ObjectTypeFolderName"": """ & FolderName & """ } }",
         AdditionalFields = Json.Document(Web.Contents(AdditionalFieldsUrl,
@@ -44,11 +35,44 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         AdditionalFieldsJsonData = AdditionalFields[Data],
         AdditionalFieldsJsonDataTable = Table.FromList(AdditionalFieldsJsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
         AdditionalFieldsTable = FilterAdditionalFields(ExpandRows(AdditionalFieldsJsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity("AdditionalFields")), IncludeRelations)),
-        JsonData = DataResult[Data],
+        IdentifiersUrl = ApiUrl & "Get" & FolderName & "Identifiers",
+        IdentifiersBody = "{ ""sessionId"": """ & SessionId & """ }",
+        IdentifiersResult = Json.Document(Web.Contents(IdentifiersUrl,
+            [
+                Headers = [#"Content-Type"="application/json"],
+                Content = Text.ToBinary(IdentifiersBody),
+                Timeout=#duration(0, 0, 5, 0)
+            ]
+        )),
+        JsonIdentifiers = IdentifiersResult[Data],
+        JsonIdentifiersTable = Table.FromList(JsonIdentifiers, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+        IdentifiersTable = ExpandRows(JsonIdentifiersTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), IncludeRelations, AdditionalFieldsTable),
+        IdentifiersList = Table.Column(IdentifiersTable, "ItemGUID"),
+        PageCount = Number.RoundUp(List.Count(IdentifiersList) / itemsPerPage),
+        PageIndices = { 0 .. PageCount - 1 },
+        Pages = List.Transform(PageIndices, each GetItemsByItemGuids(_, ApiUrl, FolderName, SessionId, IdentifiersList, IncludeRelationsParameter)),
+        JsonData = List.Union(Pages),
         JsonDataTable = Table.FromList(JsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
         Table = ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), IncludeRelations, AdditionalFieldsTable)
     in
         Table;
+
+GetItemsByItemGuids = (Index, ApiUrl, FolderName, SessionId, IdentifiersList, IncludeRelationsParameter) =>
+    let
+        Part = List.Range(IdentifiersList, Index * itemsPerPage, itemsPerPage),
+        Combined = "[""" & Text.Combine(Part, """, """) & """]",
+        DataUrl = ApiUrl & "Get" & FolderName & "ByItemGuids",
+        DataBody = "{ ""sessionId"": """ & SessionId & """, ""itemGuids"": " & Combined & ", ""includeRelations"": " & IncludeRelationsParameter & ", ""includeForeignKeys"": true, ""omitGoodsInCart"": true }",
+        DataResult = Json.Document(Web.Contents(DataUrl,
+            [
+                Headers = [#"Content-Type"="application/json"],
+                Content = Text.ToBinary(DataBody),
+                Timeout=#duration(0, 0, 5, 0)
+            ]
+        )),
+        JsonData = DataResult[Data]
+    in
+        JsonData;
 
 Base64UrlToBase64 = (base64Url) =>
     let
@@ -157,6 +181,7 @@ windowWidth = 458;
 windowHeight = 498;
 clientId = "powerbi";
 clientSecret = Text.FromBinary(Extension.Contents("client_secret"));
+itemsPerPage = 1024;
 
 CreateSha256Hash = (codeVerifier) =>
     let
