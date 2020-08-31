@@ -51,7 +51,7 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         PageCount = Number.RoundUp(List.Count(IdentifiersList) / itemsPerPage),
         PageIndices = { 0 .. PageCount - 1 },
         Pages = List.Transform(PageIndices, each GetItemsByItemGuids(_, ApiUrl, FolderName, SessionId, IdentifiersList, IncludeRelationsParameter)),
-        JsonData = List.Union(Pages),
+        JsonData = List.Combine(Pages),
         JsonDataTable = Table.FromList(JsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
         Table = ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), IncludeRelations, AdditionalFieldsTable)
     in
@@ -181,7 +181,7 @@ windowWidth = 458;
 windowHeight = 498;
 clientId = "powerbi";
 clientSecret = Text.FromBinary(Extension.Contents("client_secret"));
-itemsPerPage = 1024;
+itemsPerPage = 2000;
 
 CreateSha256Hash = (codeVerifier) =>
     let
