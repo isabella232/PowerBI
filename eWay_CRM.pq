@@ -1,5 +1,5 @@
 ﻿// This file contains your Data Connector logic
-[Version = "1.5.2"]
+[Version = "1.5.3"]
 section eWayCRM;
 
 [DataSource.Kind="eWayCRM", Publish="eWayCRM.Publish"]
@@ -14,7 +14,7 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         LoginUrl = ApiUrl & "Login",
         IncludeRelations = if (IncludeRelations = null) then false else IncludeRelations,
         IncludeRelationsParameter = if (IncludeRelations = true) then "true" else "false",
-        SessionBody = "{ ""userName"": """ & UserName & """, ""appVersion"": ""PowerBI_Connector_152"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
+        SessionBody = "{ ""userName"": """ & UserName & """, ""appVersion"": ""PowerBI_Connector_153"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
         SessionResult = Json.Document(Web.Contents(LoginUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
@@ -133,6 +133,7 @@ eWayCRM_Implementation = (optional IncludeRelations as logical) =>
             { "Features", "Features", eWayCRM.Data("Features", IncludeRelations), "Table", "Table", true},
             { "Flows", "Flows", eWayCRM.Data("Flows", IncludeRelations), "Table", "Table", true},
             { "Global Settings", "GlobalSettings", eWayCRM.Data("GlobalSettings", IncludeRelations), "Table", "Table", true},
+            { "Goals", "Goals", eWayCRM.Data("Goals", IncludeRelations), "Table", "Table", true},
             { "Journal", "Journals", eWayCRM.Data("Journals", IncludeRelations), "Table", "Table", true},
             { "Marketing", "MarketingCampaigns", eWayCRM.Data("MarketingCampaigns", IncludeRelations), "Table", "Table", true},
             { "Marketing List", "MarketingListsRecords", eWayCRM.Data("MarketingListsRecords", IncludeRelations), "Table", "Table", true},
@@ -672,6 +673,23 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
     {"GlobalSettings", #table({"Name", "Type"}, {
         {"Name", type text},
         {"Value", type text}
+    })},
+    {"Goals", #table({"Name", "Type"}, {
+        {"GoalTypeEn", type text},
+        {"Note", type text},
+        {"StartDate", type datetime},
+        {"EndDate", type datetime},
+        {"TurnoverGoal", type number},
+        {"TurnoverActual", type number},
+        {"TurnoverCompleted", type number},
+        {"ProfitGoal", type number},
+        {"ProfitActual", type number},
+        {"ProfitCompleted", type number},
+        {"CurrencyEn", type text},
+        {"TurnoverGoalDefaultCurrency", type number},
+        {"ProfitGoalDefaultCurrency", type number},
+        {"TurnoverGoalChanged", type datetime},
+        {"ProfitGoalChanged", type datetime}
     })},
     {"Goods", #table({"Name", "Type"}, {
         {"Code", type text},
