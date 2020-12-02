@@ -649,9 +649,9 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
     })},
     {"Flows", #table({"Name", "Type"}, {
         {"ActionItemGuid", type text},
-        {"FieldsLockedByAction", type text},
+        {"FieldsLockedByAction", type list},
         {"ModelGuid", type text},
-        {"NonEmptyFieldsPrecondition", type text},
+        {"NonEmptyFieldsPrecondition", type list},
         {"PerformsAreEqualAction", type text},
         {"PerformsCheckRelationPresenceAction", type text},
         {"PerformsCreateRelationAction", type text},
