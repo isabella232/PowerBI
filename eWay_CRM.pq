@@ -1,5 +1,5 @@
 ﻿// This file contains your Data Connector logic
-[Version = "1.5.4"]
+[Version = "1.6.0"]
 section eWayCRM;
 
 [DataSource.Kind="eWayCRM", Publish="eWayCRM.Publish"]
@@ -14,7 +14,7 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         LoginUrl = ApiUrl & "Login",
         IncludeRelations = if (IncludeRelations = null) then false else IncludeRelations,
         IncludeRelationsParameter = if (IncludeRelations = true) then "true" else "false",
-        SessionBody = "{ ""userName"": """ & UserName & """, ""appVersion"": ""PowerBI_Connector_154"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
+        SessionBody = "{ ""userName"": """ & UserName & """, ""appVersion"": ""PowerBI_Connector_160"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
         SessionResult = Json.Document(Web.Contents(LoginUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
@@ -810,7 +810,7 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
         {"Contacts_ContactGuid", type text},
         {"Leads_SuperiorItemGuid", type text},
         {"Marketing_MarketingGuid", type text},
-        {"Marketing_SuperiorItemGuid", type text}
+        {"Projects_SuperiorItemGuid", type text}
     })},
     {"Leads", #table({"Name", "Type"}, {
         {"City", type text},
@@ -1127,7 +1127,7 @@ GetAdditionalFieldType = (fieldType as number) as type =>
 
 // Data Source UI publishing description
 eWayCRM.Publish = [
-    Beta = true,
+    Beta = false,
     Category = "Online Services",
     ButtonText = { Extension.LoadString("ButtonTitle"), Extension.LoadString("ButtonHelp") },
     LearnMoreUrl = "https://www.eway-crm.com/",
